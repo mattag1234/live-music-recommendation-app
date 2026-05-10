@@ -43,16 +43,40 @@ def get_spotify_client(user) -> tuple[spotipy.Spotify, MemoryCacheHandler] | tup
         cache_handler=cache_handler,
     )
 
-    sp = spotipy.Spotify(auth_manager=auth_manager, request_session= _retry_session())
+    sp = spotipy.Spotify(auth_manager=auth_manager, requests_session=_retry_session())
     return sp, cache_handler
 
 
-def get_current_track(sp):
-    """Return dict with name, artist, spotify_id of currently playing track."""
-    current = sp.current_user_playing_track()
+def save_tokens_if_refreshed(user, cache_handler: MemoryCacheHandler) -> None:
+    """Persist refreshed tokens back to the User row if Spotipy renewed them."""
+    from models import db
+
+    cached = cache_handler.get_cached_token()
+    if cached and cached["access_token"] != user.spotify_token:
+        user.spotify_token = cached["access_token"]
+        user.spotify_token_expiry = cached.get("expires_at", 0)
+        db.session.commit()
+
+
+def get_current_track(sp) -> dict | None:
+    """Return {"spotify_id", "name", "artist"} for the currently playing track.
+
+    Returns None if nothing is playing.
+    """
+    try:
+        current = sp.current_user_playing_track()
+    except SpotifyException as exc:
+        if exc.http_status in (401, 403):
+            return None
+        raise
+
     if current is None or current.get("item") is None:
         return None
+
     item = current["item"]
+    if item.get("type") != "track":
+        return None
+
     return {
         "spotify_id": item["id"],
         "name": item["name"],
@@ -60,11 +84,17 @@ def get_current_track(sp):
     }
 
 
-#Album Art
-#Volume
-#Like_Track
-#Song preview play on hover 
+def queue_track(sp, spotify_id: str) -> tuple[bool, str | None]:
+    """Add a track to the user's Spotify queue.
 
-def queue_track(sp, spotify_id):
-    """Add a track to the user's Spotify queue."""
-    sp.add_to_queue(spotify_id)
+    Returns (True, None) on success, or (False, error_message) on failure.
+    """
+    try:
+        sp.add_to_queue(f"spotify:track:{spotify_id}")
+        return True, None
+    except SpotifyException as exc:
+        if exc.http_status == 404:
+            return False, "Track not found."
+        if exc.http_status == 403:
+            return False, "Playback requires an active Spotify Premium device."
+        return False, f"Spotify error {exc.http_status}: {exc.msg}"
