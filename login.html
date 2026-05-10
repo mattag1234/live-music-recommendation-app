@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Recommendation App</title>
+    <title>Login page</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header>
-        <h1>Welcome to Live Music Recommendation App</h1>
+        <h1>Login</h1>
         <nav>
             <ul>
                 <li><a href="index.html">Home</a></li>
@@ -18,10 +18,16 @@
         </nav>
     </header>
     <main>
-        <section>
-            <h2>Discover New Music!</h2>
-            <p>Lorem Ipsum</p>
-        </section>
+        <form>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+            <br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <br>
+            <button type="submit">Login</button>
+        </form>
+        <button onclick="window.location.href='index.html'">Back to Home</button>
     </main>
     <footer>
         <p>&copy; 2026 CSE 108 Live Music Recommendation App Thingy</p>
