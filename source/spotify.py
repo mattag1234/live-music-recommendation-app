@@ -21,8 +21,9 @@ def _retry_session() -> requests.Session:
     return session
 
 
+"""Build an authenticated Spotipy client for a given User."""
 def get_spotify_client(user) -> tuple[spotipy.Spotify, MemoryCacheHandler] | tuple[None,None]:
-    """Build an authenticated Spotipy client for a given User."""
+
     if not user.spotify_token:
         return None,None
     
@@ -46,9 +47,8 @@ def get_spotify_client(user) -> tuple[spotipy.Spotify, MemoryCacheHandler] | tup
     sp = spotipy.Spotify(auth_manager=auth_manager, requests_session=_retry_session())
     return sp, cache_handler
 
-
+"""Persist refreshed tokens back to the User row if Spotipy renewed them."""
 def save_tokens_if_refreshed(user, cache_handler: MemoryCacheHandler) -> None:
-    """Persist refreshed tokens back to the User row if Spotipy renewed them."""
     from models import db
 
     cached = cache_handler.get_cached_token()
@@ -58,11 +58,12 @@ def save_tokens_if_refreshed(user, cache_handler: MemoryCacheHandler) -> None:
         db.session.commit()
 
 
-def get_current_track(sp) -> dict | None:
-    """Return {"spotify_id", "name", "artist"} for the currently playing track.
+"""Return {"spotify_id", "name", "artist"} for the currently playing track.
 
-    Returns None if nothing is playing.
-    """
+Returns None if nothing is playing.
+"""
+def get_current_track(sp) -> dict | None:
+
     try:
         current = sp.current_user_playing_track()
     except SpotifyException as exc:
@@ -83,12 +84,11 @@ def get_current_track(sp) -> dict | None:
         "artist": item["artists"][0]["name"],
     }
 
+"""Add a track to the user's Spotify queue.
 
+Returns (True, None) on success, or (False, error_message) on failure.
+"""
 def queue_track(sp, spotify_id: str) -> tuple[bool, str | None]:
-    """Add a track to the user's Spotify queue.
-
-    Returns (True, None) on success, or (False, error_message) on failure.
-    """
     try:
         sp.add_to_queue(f"spotify:track:{spotify_id}")
         return True, None
