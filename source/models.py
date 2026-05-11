@@ -14,6 +14,7 @@ class User(UserMixin, db.Model):
 
     spotify_token = db.Column(db.Text, nullable=True)
     spotify_refresh = db.Column(db.Text, nullable=True)
+    spotify_token_expiry = db.Column(db.Integer, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
