@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required
 from models import db, User
 
@@ -18,6 +18,16 @@ def load_user(user_id):
 
 with app.app_context():
     db.create_all()
+
+# Home - shows login page
+@app.route('/')
+def login_page():
+    return render_template('login.html')
+
+# Register page
+@app.route('/register')
+def register_page():
+    return render_template('login.html')
 
 # Register
 @app.route('/register', methods=['POST'])
