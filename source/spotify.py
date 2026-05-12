@@ -26,7 +26,7 @@ def _get_cc_client() -> spotipy.Spotify:
             client_id=os.getenv("SPOTIFY_CLIENT_ID"),
             client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
         ),
-        request_session=_retry_session(),
+        requests_session=_retry_session(),
     )
     return _cc_client
 
@@ -141,7 +141,7 @@ def save_track(sp, spotify_id: str) -> tuple[bool, str | None]:
 """Three new functions to fetch meta data """
 def get_artist_ids(track_id: str) -> list[str]:
     try:
-        track = _get_cc_client(),track(track_id)
+        track = _get_cc_client().track(track_id)
         return [artist["id"] for artist in track["artists"]]
     except SpotifyException:
         return []
@@ -150,7 +150,7 @@ def get_artist_genres(artist_id: str) -> list[str]:
     try:
         artist = _get_cc_client().artist(artist_id)
         return artist.get("genres", [])
-    except SpotifyClientCredentials:
+    except SpotifyException:
         return []
     
 def get_track_genres(track_id: str) -> list[str]:
