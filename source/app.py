@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+import os
+import secrets
+
 from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
@@ -9,9 +12,32 @@ from recommender import recommend
 import spotify as spotify_lib
 from spotify_api import bp as spotify_bp
 
+
+def _resolve_database_uri() -> str:
+    url = os.getenv('DATABASE_URL')
+    if not url:
+        return 'sqlite:///music.db'
+    # Render/Heroku still hand out legacy "postgres://" URIs; SQLAlchemy 2.x
+    # only accepts "postgresql://".
+    if url.startswith('postgres://'):
+        url = 'postgresql://' + url[len('postgres://'):]
+    return url
+
+
+def _resolve_secret_key() -> str:
+    key = os.getenv('SECRET_KEY')
+    if key:
+        return key
+    # Generate a per-process key for local dev. In production this means
+    # sessions invalidate on every restart — log a warning so it's visible.
+    print('[warning] SECRET_KEY not set; generating an ephemeral one. '
+          'Sessions will reset on every restart.')
+    return secrets.token_hex(32)
+
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///music.db'
+app.config['SECRET_KEY'] = _resolve_secret_key()
+app.config['SQLALCHEMY_DATABASE_URI'] = _resolve_database_uri()
 
 db.init_app(app)
 login_manager = LoginManager(app)
@@ -217,4 +243,6 @@ def api_skip():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Local dev only. Production runs gunicorn (see Dockerfile / Procfile).
+    port = int(os.getenv('PORT', '5000'))
+    app.run(host='0.0.0.0', port=port, debug=True)

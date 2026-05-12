@@ -1,0 +1,28 @@
+# Don't ship the dev environment into the container
+.venv/
+__pycache__/
+*.pyc
+
+# Don't bake data files in — they're downloaded at runtime by data_bootstrap.py
+data/
+
+# Local-only state
+.env
+.env.*
+.cache
+instance/
+*.db
+
+# Git + IDE noise
+.git/
+.gitignore
+.DS_Store
+.vscode/
+.idea/
+
+# Notebooks aren't needed in the deployed container
+notebooks/
+
+# Repo-level docs that HF Spaces reads from the repo root, not the container
+README.md
+LICENSE

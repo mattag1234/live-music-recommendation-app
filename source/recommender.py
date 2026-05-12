@@ -25,8 +25,8 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
+from data_bootstrap import DATA_DIR, ensure_data_files
+
 EMBEDDINGS_PATH = os.path.join(DATA_DIR, 'embeddings.npy')
 SONG_IDS_PATH = os.path.join(DATA_DIR, 'song_ids.npy')
 METADATA_PATH = os.path.join(DATA_DIR, 'song_metadata.pkl')
@@ -34,6 +34,7 @@ METADATA_PATH = os.path.join(DATA_DIR, 'song_metadata.pkl')
 ERA_WINDOW = 10  # ± years for the era filter
 
 print("Initializing recommender...")
+ensure_data_files()
 
 _embeddings = np.load(EMBEDDINGS_PATH)
 _song_ids = np.load(SONG_IDS_PATH)
