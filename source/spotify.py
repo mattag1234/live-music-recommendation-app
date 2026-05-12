@@ -4,14 +4,32 @@ import spotipy
 from requests.adapters import HTTPAdapter
 from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.exceptions import SpotifyException
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 from urllib3.util.retry import Retry
+
 
 SPOTIFY_SCOPES = (
     "user-read-currently-playing "
     "user-modify-playback-state "
     "user-library-modify"
 )
+
+
+"""CLient Credentials to collect artist metadata"""
+_cc_client: spotipy.Spotify | None = None
+
+def _get_cc_client() -> spotipy.Spotify:
+    global _cc_client
+    if _cc_client is None:
+        _cc_client = spotipy.Spotify(
+            auth_manager=SpotifyClientCredentials(
+            client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+            client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
+        ),
+        request_session=_retry_session(),
+    )
+    return _cc_client
+
 
 def _retry_session() -> requests.Session:
     retry = Retry(
@@ -24,7 +42,6 @@ def _retry_session() -> requests.Session:
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retry))
     return session
-
 
 
 def get_spotify_client(user) -> tuple[spotipy.Spotify, MemoryCacheHandler] | tuple[None, None]:
@@ -62,7 +79,6 @@ def save_tokens_if_refreshed(user, cache_handler: MemoryCacheHandler) -> None:
         user.spotify_token = cached["access_token"]
         user.spotify_token_expiry = cached.get("expires_at", 0)
         db.session.commit()
-
 
 
 def get_current_track(sp) -> dict | None:
@@ -106,8 +122,9 @@ def queue_track(sp, spotify_id: str) -> tuple[bool, str | None]:
             return False, "Playback requires an active Spotify Premium device."
         return False, f"Spotify error {exc.http_status}: {exc.msg}"
     
-"""Save a track to the users Spotify account."""
+
 def save_track(sp, spotify_id: str) -> tuple[bool, str | None]:
+    """Save a track to the users Spotify account."""
     try:
         sp.current_user_saved_tracks_add(tracks=[spotify_id])
         return True, None
@@ -118,3 +135,26 @@ def save_track(sp, spotify_id: str) -> tuple[bool, str | None]:
             return False, "Track not found."
         return False, f"Spotify error {exc.http_status}: {exc.msg}"
     
+
+
+
+"""Three new functions to fetch meta data """
+def get_artist_ids(track_id: str) -> list[str]:
+    try:
+        track = _get_cc_client(),track(track_id)
+        return [artist["id"] for artist in track["artists"]]
+    except SpotifyException:
+        return []
+    
+def get_artist_genres(artist_id: str) -> list[str]:
+    try:
+        artist = _get_cc_client().artist(artist_id)
+        return artist.get("genres", [])
+    except SpotifyClientCredentials:
+        return []
+    
+def get_track_genres(track_id: str) -> list[str]:
+    genres: set[str] = set()
+    for artist_id in get_artist_ids(track_id):
+        genres.update(get_artist_genres(artist_id))
+    return list(genres)
