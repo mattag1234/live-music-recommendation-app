@@ -6,7 +6,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
-short_description: AI-powered "live DJ co-pilot" for Spotify, trained on 1.2M songs.
+short_description: AI music recommendations from your live Spotify playback.
 ---
 
 # Organic Sound
