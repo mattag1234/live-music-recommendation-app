@@ -44,8 +44,11 @@ data/*.npy
 data/*.csv
 data/*.zip
 
+.ipynb_checkpoints/
+
 .venv/
 __pycache__/
 instance/
 *.pyc
+
 

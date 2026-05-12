@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import requests
 import spotipy
@@ -100,10 +102,12 @@ def get_current_track(sp) -> dict | None:
     if item.get("type") != "track":
         return None
 
+    images = (item.get("album") or {}).get("images") or []
     return {
         "spotify_id": item["id"],
         "name": item["name"],
-        "artist": item["artists"][0]["name"],
+        "artist": ", ".join(a["name"] for a in item.get("artists", [])),
+        "album_art": images[0]["url"] if images else None,
     }
 
 
@@ -136,6 +140,40 @@ def save_track(sp, spotify_id: str) -> tuple[bool, str | None]:
         return False, f"Spotify error {exc.http_status}: {exc.msg}"
     
 
+
+
+def search_track(name: str, artist: str | None = None) -> dict | None:
+    """Find the current Spotify track for a name+artist via search.
+
+    We need this because (a) Spotify's batch GET /v1/tracks endpoint 403s for
+    dev-mode apps, and (b) the Kaggle dataset's track IDs have drifted — some
+    no longer resolve to the song the CSV says they do. Search by name+artist
+    gives us today's correct ID plus album art for the rec cards.
+    """
+    if not name:
+        return None
+    q = f'track:{name}'
+    if artist:
+        first = artist.split(",")[0].strip()
+        if first:
+            q += f' artist:{first}'
+    try:
+        result = _get_cc_client().search(q=q, type="track", limit=1)
+    except SpotifyException as exc:
+        print(f"[spotify] search() failed: {exc.http_status} {exc.msg}")
+        return None
+
+    items = result.get("tracks", {}).get("items") or []
+    if not items:
+        return None
+    item = items[0]
+    images = (item.get("album") or {}).get("images") or []
+    return {
+        "id": item["id"],
+        "name": item.get("name"),
+        "artist": ", ".join(a["name"] for a in item.get("artists", [])),
+        "album_art": images[0]["url"] if images else None,
+    }
 
 
 """Three new functions to fetch meta data """

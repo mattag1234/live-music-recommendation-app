@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Log in · Organic Sound</title>
+  <title>Sign up · Organic Sound</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
 </head>
 <body>
@@ -13,31 +13,31 @@
         <span class="brand-dot"></span>
         <span>Organic Sound</span>
       </div>
-      <h1>Log in</h1>
-      <p class="subtitle">Welcome back. Sign in to keep the set going.</p>
+      <h1>Create your account</h1>
+      <p class="subtitle">AI-powered song recommendations from your live Spotify session.</p>
 
       <div id="flash" class="flash"></div>
 
-      <form id="login-form" autocomplete="on">
+      <form id="signup-form" autocomplete="on">
         <div class="form-field">
           <label for="username">Username</label>
           <input type="text" id="username" name="username" autocomplete="username" required />
         </div>
         <div class="form-field">
           <label for="password">Password</label>
-          <input type="password" id="password" name="password" autocomplete="current-password" required />
+          <input type="password" id="password" name="password" autocomplete="new-password" minlength="4" required />
         </div>
-        <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Log in</button>
+        <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Sign up</button>
       </form>
 
       <div class="alt-action">
-        New here? <a href="{{ url_for('signup_page') }}">Create an account</a>
+        Already have an account? <a href="{{ url_for('login_page') }}">Log in</a>
       </div>
     </div>
   </div>
 
   <script>
-    const form = document.getElementById('login-form');
+    const form = document.getElementById('signup-form');
     const flash = document.getElementById('flash');
     const submitBtn = document.getElementById('submit-btn');
 
@@ -49,10 +49,10 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span> Logging in';
+      submitBtn.innerHTML = '<span class="spinner"></span> Creating account';
 
       try {
-        const res = await fetch('/login', {
+        const res = await fetch('/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -62,16 +62,17 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          showFlash(data.error || 'Login failed');
+          showFlash(data.error || 'Sign up failed');
           submitBtn.disabled = false;
-          submitBtn.textContent = 'Log in';
+          submitBtn.textContent = 'Sign up';
           return;
         }
-        window.location.href = '/player';
+        showFlash('Account created. Redirecting to login…', 'success');
+        setTimeout(() => { window.location.href = '/login'; }, 700);
       } catch (err) {
         showFlash('Network error. Try again.');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Log in';
+        submitBtn.textContent = 'Sign up';
       }
     });
   </script>

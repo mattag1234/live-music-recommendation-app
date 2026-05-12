@@ -55,7 +55,7 @@ def callback():
         return jsonify({"error": "Invalid OAuth state"}), 400
 
     if request.args.get("error"):
-        return redirect(url_for("main.index"))
+        return redirect(url_for("player_page"))
 
     code = request.args.get("code")
     if not code:
@@ -68,7 +68,7 @@ def callback():
     current_user.spotify_token_expiry = token_info["expires_at"]
     db.session.commit()
 
-    return redirect(url_for("main.index"))
+    return redirect(url_for("player_page"))
 
 """Saves track to the user's library"""
 @bp.route("/save/<spotify_id>", methods=["POST"])
