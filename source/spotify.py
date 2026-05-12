@@ -26,7 +26,6 @@ def _retry_session() -> requests.Session:
     return session
 
 
-
 def get_spotify_client(user) -> tuple[spotipy.Spotify, MemoryCacheHandler] | tuple[None, None]:
     """Build an authenticated Spotipy client for a given User."""
     if not user.spotify_token:
@@ -62,7 +61,6 @@ def save_tokens_if_refreshed(user, cache_handler: MemoryCacheHandler) -> None:
         user.spotify_token = cached["access_token"]
         user.spotify_token_expiry = cached.get("expires_at", 0)
         db.session.commit()
-
 
 
 def get_current_track(sp) -> dict | None:
@@ -106,8 +104,9 @@ def queue_track(sp, spotify_id: str) -> tuple[bool, str | None]:
             return False, "Playback requires an active Spotify Premium device."
         return False, f"Spotify error {exc.http_status}: {exc.msg}"
     
-"""Save a track to the users Spotify account."""
+
 def save_track(sp, spotify_id: str) -> tuple[bool, str | None]:
+    """Save a track to the users Spotify account."""
     try:
         sp.current_user_saved_tracks_add(tracks=[spotify_id])
         return True, None
