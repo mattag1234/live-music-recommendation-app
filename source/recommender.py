@@ -17,19 +17,19 @@ filtering is a robust alternative that uses only data already in our dataset.
 """
 
 import os
+import pickle
 import re
 import sys
-import ast
+
 import numpy as np
-import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from data_utils import get_csv_path
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 EMBEDDINGS_PATH = os.path.join(DATA_DIR, 'embeddings.npy')
 SONG_IDS_PATH = os.path.join(DATA_DIR, 'song_ids.npy')
+METADATA_PATH = os.path.join(DATA_DIR, 'song_metadata.pkl')
 
 ERA_WINDOW = 10  # ± years for the era filter
 
@@ -42,12 +42,10 @@ _id_to_index = {sid: idx for idx, sid in enumerate(_song_ids)}
 _norms = np.linalg.norm(_embeddings, axis=1, keepdims=True)
 _embeddings_normalized = _embeddings / _norms
 
-print("Loading song metadata from CSV...")
-_df_meta = pd.read_csv(get_csv_path(), usecols=['id', 'name', 'artists', 'year'])
-_song_to_year = dict(zip(_df_meta['id'], _df_meta['year']))
-_song_to_name = dict(zip(_df_meta['id'], _df_meta['name']))
-_song_to_artists_raw = dict(zip(_df_meta['id'], _df_meta['artists']))
-del _df_meta
+print("Loading song metadata from pickle...")
+with open(METADATA_PATH, 'rb') as f:
+    # {spotify_id: (year_or_None, name, artist_cleaned)}
+    _song_meta: dict = pickle.load(f)
 
 print(f"Loaded {len(_song_ids):,} songs with {_embeddings.shape[1]}-dim embeddings")
 print("Recommender ready.")
@@ -57,19 +55,7 @@ print("Recommender ready.")
 # "(Remastered 2015)", " - Live at Wembley", "[Deluxe Edition]", etc.
 _TITLE_SUFFIX_RE = re.compile(r'\s*[\(\[\-].*$')
 
-
-def _clean_artists(raw) -> str:
-    """The CSV stores artists as a Python-list-literal string like "['A', 'B']".
-    Return a human-readable "A, B"."""
-    if not isinstance(raw, str):
-        return ''
-    try:
-        parsed = ast.literal_eval(raw)
-        if isinstance(parsed, (list, tuple)):
-            return ', '.join(str(x) for x in parsed)
-    except (ValueError, SyntaxError):
-        pass
-    return raw
+_EMPTY_META = (None, '', '')
 
 
 def _normalize_title(name) -> str:
@@ -78,8 +64,7 @@ def _normalize_title(name) -> str:
     return _TITLE_SUFFIX_RE.sub('', name).strip().lower()
 
 
-def _first_artist_key(raw) -> str:
-    cleaned = _clean_artists(raw)
+def _first_artist_key(cleaned) -> str:
     if not cleaned:
         return ''
     return cleaned.split(',')[0].strip().lower()
@@ -104,11 +89,8 @@ def recommend(track_id: str, k: int = 10, top_n_pool: int = 400) -> list:
     similarities = _embeddings_normalized @ query_vec
     top_pool = np.argsort(similarities)[::-1][:top_n_pool + 1]
 
-    query_year = _song_to_year.get(track_id)
-    query_key = (
-        _normalize_title(_song_to_name.get(track_id, '')),
-        _first_artist_key(_song_to_artists_raw.get(track_id, '')),
-    )
+    query_year, query_name, query_artist = _song_meta.get(track_id, _EMPTY_META)
+    query_key = (_normalize_title(query_name), _first_artist_key(query_artist))
     seen_keys = {query_key} if query_key[0] else set()
 
     era_filtered = []
@@ -119,26 +101,23 @@ def recommend(track_id: str, k: int = 10, top_n_pool: int = 400) -> list:
         if candidate_id == track_id:
             continue
 
-        cand_name_raw = _song_to_name.get(candidate_id, '')
-        cand_artists_raw = _song_to_artists_raw.get(candidate_id, '')
-        cand_key = (_normalize_title(cand_name_raw), _first_artist_key(cand_artists_raw))
+        cand_year, cand_name, cand_artist = _song_meta.get(candidate_id, _EMPTY_META)
+        cand_key = (_normalize_title(cand_name), _first_artist_key(cand_artist))
 
         if cand_key[0] and cand_key in seen_keys:
             continue
         seen_keys.add(cand_key)
 
-        candidate_year = _song_to_year.get(candidate_id)
         rec = {
             "track_id": candidate_id,
-            "name": cand_name_raw if isinstance(cand_name_raw, str) else None,
-            "artist": _clean_artists(cand_artists_raw),
+            "name": cand_name or None,
+            "artist": cand_artist,
             "similarity": float(similarities[i]),
-            "year": int(candidate_year) if pd.notna(candidate_year) else None,
+            "year": cand_year,
         }
 
-        if (query_year is not None and candidate_year is not None
-                and pd.notna(query_year) and pd.notna(candidate_year)
-                and abs(candidate_year - query_year) <= ERA_WINDOW):
+        if (query_year is not None and cand_year is not None
+                and abs(cand_year - query_year) <= ERA_WINDOW):
             era_filtered.append(rec)
         else:
             fallback.append(rec)
@@ -153,18 +132,12 @@ def recommend(track_id: str, k: int = 10, top_n_pool: int = 400) -> list:
 
 
 if __name__ == "__main__":
-    df_meta = pd.read_csv(get_csv_path(), usecols=[
-        'id', 'name', 'artists', 'year', 'tempo', 'energy', 'danceability', 'valence'
-    ]).set_index('id')
-
     def describe(track_id):
-        try:
-            row = df_meta.loc[track_id]
-            return (f"{row['name']} by {row['artists']}  ({row['year']})\n"
-                    f"    tempo={row['tempo']:.0f}  energy={row['energy']:.2f}  "
-                    f"dance={row['danceability']:.2f}  valence={row['valence']:.2f}")
-        except KeyError:
+        meta = _song_meta.get(track_id)
+        if meta is None:
             return f"<song {track_id} not in metadata>"
+        year, name, artist = meta
+        return f"{name} by {artist} ({year})"
 
     for idx in [412, 40_000, 190_483]:
         test_id = str(_song_ids[idx])
