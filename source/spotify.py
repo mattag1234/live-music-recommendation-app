@@ -142,31 +142,7 @@ def save_track(sp, spotify_id: str) -> tuple[bool, str | None]:
 
 
 
-def search_track(name: str, artist: str | None = None) -> dict | None:
-    """Find the current Spotify track for a name+artist via search.
-
-    We need this because (a) Spotify's batch GET /v1/tracks endpoint 403s for
-    dev-mode apps, and (b) the Kaggle dataset's track IDs have drifted — some
-    no longer resolve to the song the CSV says they do. Search by name+artist
-    gives us today's correct ID plus album art for the rec cards.
-    """
-    if not name:
-        return None
-    q = f'track:{name}'
-    if artist:
-        first = artist.split(",")[0].strip()
-        if first:
-            q += f' artist:{first}'
-    try:
-        result = _get_cc_client().search(q=q, type="track", limit=1)
-    except SpotifyException as exc:
-        print(f"[spotify] search() failed: {exc.http_status} {exc.msg}")
-        return None
-
-    items = result.get("tracks", {}).get("items") or []
-    if not items:
-        return None
-    item = items[0]
+def _parse_search_item(item: dict) -> dict:
     images = (item.get("album") or {}).get("images") or []
     return {
         "id": item["id"],
@@ -174,6 +150,47 @@ def search_track(name: str, artist: str | None = None) -> dict | None:
         "artist": ", ".join(a["name"] for a in item.get("artists", [])),
         "album_art": images[0]["url"] if images else None,
     }
+
+
+def search_track(name: str, artist: str | None = None) -> dict | None:
+    """Find the current Spotify track for a name+artist via search.
+
+    We need this because (a) Spotify's batch GET /v1/tracks endpoint 403s for
+    dev-mode apps, and (b) the Kaggle dataset's track IDs have drifted — some
+    no longer resolve to the song the CSV says they do. Search by name+artist
+    gives us today's correct ID plus album art for the rec cards.
+
+    Queries are tried from most-specific to least-specific. Wrapping each value
+    in double quotes is essential because apostrophes/dashes/commas inside an
+    unquoted `track:` or `artist:` qualifier silently break the parser
+    (e.g., `track:Israel's Son` returns nothing because Spotify reads
+    `track:Israel's` plus a bare term `Son`).
+    """
+    if not name:
+        return None
+
+    first_artist = artist.split(",")[0].strip() if artist else ""
+
+    queries = []
+    if first_artist:
+        queries.append(f'track:"{name}" artist:"{first_artist}"')
+        queries.append(f'"{name}" "{first_artist}"')
+    queries.append(f'"{name}"')
+
+    cc = _get_cc_client()
+    for q in queries:
+        try:
+            result = cc.search(q=q, type="track", limit=1)
+        except SpotifyException as exc:
+            print(f"[spotify] search failed for {q!r}: {exc.http_status} {exc.msg}")
+            continue
+
+        items = result.get("tracks", {}).get("items") or []
+        if items:
+            return _parse_search_item(items[0])
+
+    print(f"[spotify] no match for name={name!r} artist={first_artist!r}")
+    return None
 
 
 """Three new functions to fetch meta data """
