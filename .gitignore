@@ -51,4 +51,7 @@ __pycache__/
 instance/
 *.pyc
 
+# spotipy per-user OAuth token cache
+.cache
+
 
