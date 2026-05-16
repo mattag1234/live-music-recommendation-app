@@ -1,15 +1,3 @@
----
-title: "Organic Sound: A Content-Based Music Recommender Trained on 1.2 Million Songs"
-author: "Matthew Aguirre"
-date: "May 2026"
-geometry: margin=1in
-fontsize: 11pt
-documentclass: article
-linkcolor: blue
-urlcolor: blue
-colorlinks: true
----
-
 ## Abstract
 
 Organic Sound is a web application that serves real-time song recommendations based on a user's currently-playing Spotify track. A feedforward autoencoder, trained from scratch on Rodolfo Figueroa's 1.2M-song Spotify dataset, learns a 16-dimensional embedding of each song's audio features; cosine similarity over those embeddings produces the recommendations. The full system is delivered as a Flask web app with per-user Spotify OAuth, a SQLAlchemy persistence layer, and a Docker-based deployment to HuggingFace Spaces. Validation MSE on the held-out 10% split converged to **0.0062** at epoch 23, with a train/validation loss gap below 1.5% — indicating excellent generalization for a model with only 8,424 parameters. Real-time inference runs at under 10 ms per query on a single CPU core. This report covers the architecture, the design rationale behind each ML choice, an engineering pivot forced by a mid-project Spotify API deprecation, and the limitations of pure content-based recommendation.
