@@ -1,14 +1,3 @@
----
-title: Organic Sound
-colorFrom: green
-colorTo: gray
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
-short_description: AI music recommendations from your live Spotify playback.
----
-
 # Organic Sound
 
 **A live "DJ co-pilot" that recommends songs based on what you're listening to right now, using a neural audio embedding trained on 1.2 million tracks.**
@@ -323,19 +312,6 @@ Model artifacts (`embeddings.npy`, `song_ids.npy`, `song_metadata.pkl`) live in 
 | `SECRET_KEY` | `python3 -c "import secrets; print(secrets.token_hex(32))"` |
 | `DATABASE_URL` | Neon connection string |
 | `HF_DATASET_REPO` / `HF_TOKEN` | Private dataset path + read-scope token |
-
----
-
-## For My Resume
-
-Drop-in bullets, quantified and concrete:
-
-- **Designed and trained a PyTorch autoencoder on 1.2M Spotify songs** to learn 16-dimensional audio embeddings, achieving a validation MSE of 0.0062 with no overfitting (train/val loss gap < 1.5%) at 8,424 parameters.
-- **Engineered an end-to-end ML pipeline** spanning data filtering, preprocessing, GPU training (NVIDIA RTX 6000 Ada), embedding generation over the full 1.2M-song catalog, and CPU-based real-time inference at < 10 ms per top-K query via L2-normalized BLAS GEMV.
-- **Pivoted recommender architecture from genre-hybrid to era-based filtering** after discovering Spotify's mid-project deprecation of the artist-genres API field — demonstrating resilience to upstream dependency changes in production ML systems.
-- **Built a full-stack Flask web application** with per-user Spotify OAuth, session-based authentication with pbkdf2-SHA256 password hashing, SQLAlchemy ORM persistence, and live Spotify queue / skip / save integration.
-- **Deployed to production on HuggingFace Spaces via Docker** with model artifacts (173 MB of embeddings) externalized to a private HuggingFace Dataset, managed Postgres on Neon, and a memory-aware gunicorn configuration (single worker + threaded) to handle concurrent requests without duplicating in-memory state.
-- **Hardened the Spotify integration against three breaking API changes** (deprecated genres field, restricted batch tracks endpoint, dev-mode quota enforcement) by introducing a three-tier quoted-search fallback and client-credentials authorization for catalog metadata.
 
 ---
 
